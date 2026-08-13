@@ -15,12 +15,16 @@ public class ScraperMarchesApplication {
     public static void main(String[] args) {
         SpringApplication.run(ScraperMarchesApplication.class, args);
     }
-// Le CommandLineRunner permet de lancer l'extraction automatiquement dès que tu lances l'application Spring Boot
-    // C'est l'idéal pour ta présentation : tu cliques sur "Play" dans IntelliJ et le navigateur s'ouvre tout seul !
+    // L'exécution automatique au démarrage a été désactivée.
+    // L'utilisateur (Président) peut maintenant lancer l'extraction et tester les alertes depuis l'interface web.
+    /*
     @Bean
-    CommandLineRunner demarrerSimulationAutomatique(ScrapingService scrapingService) {
+    CommandLineRunner demarrerSimulationAutomatique(com.stage.tgr.scrapermarches.service.ScrapingService scrapingService,
+                                                    com.stage.tgr.scrapermarches.service.StatutService statutService) {
         return args -> {
             scrapingService.demarrerExtraction();
+            statutService.mettreAJourStatutsClotures();
         };
     }
+    */
 }

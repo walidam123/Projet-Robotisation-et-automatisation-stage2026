@@ -21,4 +21,7 @@ public interface AppelOffreRepository extends MongoRepository<AppelOffre, String
 
     // Utile pour trouver les appels d'offres à clôturer
     List<AppelOffre> findByStatutAndDateLimiteRemiseBefore(String statut, LocalDateTime date);
+
+    // Utile pour trouver tous les marchés avec un statut spécifique
+    List<AppelOffre> findByStatut(String statut);
 }

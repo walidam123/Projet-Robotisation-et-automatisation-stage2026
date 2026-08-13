@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Configuration du Robot</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; }
+        .navbar { margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-primary">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1">🤖 Robot Scraper - Configuration</span>
+            <a href="/" class="btn btn-light btn-sm">🔙 Retour au Dashboard</a>
+        </div>
+    </nav>
+
+    <div class="container mt-4 mb-5">
+        <div class="card shadow">
+            <div class="card-header bg-dark text-white">
+                <h5 class="card-title mb-0">Paramètres de Recherche et Notifications</h5>
+            </div>
+            <div class="card-body">
+                <form th:action="@{/config}" th:object="${config}" method="post">
+                    
+                    <h6 class="text-primary border-bottom pb-2 mb-3">Critères de Recherche</h6>
+                    
+                    <div class="mb-3">
+                        <label for="acheteurCible" class="form-label fw-bold">Nom de l'Acheteur Public cible :</label>
+                        <input type="text" class="form-control" id="acheteurCible" th:field="*{acheteurCible}" placeholder="Ex: POSTE MAROC" required>
+                        <div class="form-text">Le robot tapera exactement ce texte dans la barre de recherche du portail.</div>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label for="dateDebutRecherche" class="form-label fw-bold">Date limite de remise (Début) :</label>
+                            <input type="date" class="form-control" id="dateDebutRecherche" th:field="*{dateDebutRecherche}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="dateFinRecherche" class="form-label fw-bold">Date limite de remise (Fin) :</label>
+                            <input type="date" class="form-control" id="dateFinRecherche" th:field="*{dateFinRecherche}" required>
+                        </div>
+                    </div>
+
+                    <h6 class="text-primary border-bottom pb-2 mb-3 mt-4">Notifications & Système</h6>
+
+                    <div class="mb-3">
+                        <label for="emailNotification" class="form-label fw-bold">Email pour les Alertes (J-7 / J-1) :</label>
+                        <input type="email" class="form-control" id="emailNotification" th:field="*{emailNotification}" placeholder="president@entreprise.com" required>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="limiteResultats" class="form-label fw-bold">Limite de résultats par extraction :</label>
+                        <input type="number" class="form-control" id="limiteResultats" th:field="*{limiteResultats}" required>
+                        <div class="form-text">Mettre -1 pour ne pas mettre de limite (attention, cela peut prendre du temps sur de très gros acheteurs).</div>
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="/" class="btn btn-secondary me-md-2">Annuler</a>
+                        <button type="submit" class="btn btn-success px-4">💾 Sauvegarder la Configuration</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard - Marchés Publics</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; }
+        .navbar { margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-primary">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1">🤖 Robot Scraper - Marchés Publics</span>
+            <div>
+                <a href="/run-scraper" class="btn btn-warning btn-sm fw-bold me-2">▶️ Lancer l'Extraction</a>
+                <a href="/run-alerts" class="btn btn-info btn-sm fw-bold me-2">📧 Tester les Alertes</a>
+                <a href="/config" class="btn btn-light btn-sm fw-bold">⚙️ Configuration</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div th:if="${param.success}" class="alert alert-success alert-dismissible fade show mt-3">
+            <strong>Succès !</strong> Configuration sauvegardée. Le robot utilisera ces paramètres lors de sa prochaine exécution.
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        <div th:if="${param.scraping}" class="alert alert-warning alert-dismissible fade show mt-3">
+            <strong>En cours...</strong> Le robot a démarré l'extraction en arrière-plan. (Regarde la fenêtre Chrome). Actualise cette page dans quelques minutes.
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        <div th:if="${param.alerts}" class="alert alert-info alert-dismissible fade show mt-3">
+            <strong>En cours...</strong> La vérification des alertes email a démarré en arrière-plan. Vérifie la console de l'application ou ta boîte de réception.
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        
+        <div class="card shadow-sm">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Liste des Appels d'Offres Extraits</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-striped table-hover table-bordered align-middle">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Référence</th>
+                            <th>Statut</th>
+                            <th>Acheteur</th>
+                            <th>Objet</th>
+                            <th>Date Limite</th>
+                            <th>Lieu</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="marche : ${marches}">
+                            <td class="fw-bold" th:text="${marche.reference}"></td>
+                            <td>
+                                <span th:class="${marche.statut == 'Ouvert' ? 'badge bg-success' : 'badge bg-secondary'}" 
+                                      th:text="${marche.statut}"></span>
+                            </td>
+                            <td th:text="${marche.acheteurPublic}"></td>
+                            <td th:text="${marche.objet}"></td>
+                            <td th:text="${#temporals.format(marche.dateLimiteRemise, 'dd/MM/yyyy HH:mm')}"></td>
+                            <td th:text="${marche.lieuExecution}"></td>
+                            <td>
+                                <a th:href="${marche.urlDce}" target="_blank" class="btn btn-sm btn-primary">Lien DCE</a>
+                            </td>
+                        </tr>
+                        <tr th:if="${#lists.isEmpty(marches)}">
+                            <td colspan="7" class="text-center text-muted py-4">Aucun marché trouvé dans la base de données. Le robot n'a pas encore fait d'extraction.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

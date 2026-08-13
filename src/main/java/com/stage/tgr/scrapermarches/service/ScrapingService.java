@@ -22,7 +22,10 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import org.openqa.selenium.JavascriptExecutor;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
+
+import com.stage.tgr.scrapermarches.model.ConfigurationRobot;
+import com.stage.tgr.scrapermarches.repository.ConfigurationRobotRepository;
 
 @Service
 @Slf4j
@@ -31,20 +34,36 @@ public class ScrapingService {
 
     private final AppelOffreRepository repository;
     private final AppelOffreMapper mapper;
-    @Value("${scraper.acheteur-cible}")
-    private String acheteurCible;
+    private final ConfigurationRobotRepository configRepository;
 
-    @Value("${scraper.limite-resultats}")
-    private int limiteResultats;
-
+    /**
+     * Tâche planifiée pour s'exécuter tous les jours à 1h00 du matin.
+     * Récupère les nouveaux marchés sur le portail et les met à jour en base (Upsert).
+     */
+    // @Scheduled(cron = "0 0 1 * * ?") // Désactivé pour la démo
     public void demarrerExtraction() {
         log.info("Démarrage du robot d'extraction des marchés publics...");
+        
+        // Chargement de la configuration depuis la base de données
+        ConfigurationRobot config = configRepository.findById("1").orElse(
+                ConfigurationRobot.builder()
+                        .id("1")
+                        .acheteurCible("POSTE MAROC")
+                        .emailNotification("test@test.com")
+                        .limiteResultats(50)
+                        .build()
+        );
+        String acheteurCible = config.getAcheteurCible();
+        int limiteResultats = config.getLimiteResultats();
+        
+        log.info("Configuration chargée - Acheteur cible : {}", acheteurCible);
+
         // WebDriverManager.chromedriver().setup(); // Inutile avec Selenium 4+ et évite l'erreur de connexion à github.io
 
         ChromeOptions options = new ChromeOptions();
         options.addArguments("--remote-allow-origins=*");
         options.addArguments("--start-maximized");
-        // options.addArguments("--headless=new"); // <-- A décommenter pour le serveur de production
+        // options.addArguments("--headless=new"); // <-- Désactivé pour la démo (le navigateur sera visible)
 
         WebDriver driver = new ChromeDriver(options);
         WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(20));
@@ -65,10 +84,10 @@ public class ScrapingService {
             Thread.sleep(1000);
 
             // --- 2. Saisie des dates : "Date limite de remise des plis" ---
-            // On filtre pour récupérer uniquement les marchés encore ouverts (date limite entre aujourd'hui et +6 mois)
+            // On utilise les dates paramétrées par l'utilisateur depuis l'interface web
             DateTimeFormatter formatteur = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-            String dateDuJour = LocalDate.now().format(formatteur);
-            String dateFin = LocalDate.now().plusMonths(6).format(formatteur);
+            String dateDuJour = config.getDateDebutRecherche().format(formatteur);
+            String dateFin = config.getDateFinRecherche().format(formatteur);
 
             // Champ "Entre le" (date de début de la plage)
             WebElement champDateDebut = driver.findElement(By.id("ctl0_CONTENU_PAGE_AdvancedSearch_dateMiseEnLigneStart"));
@@ -187,6 +206,14 @@ public class ScrapingService {
                                 .build();
 
                         AppelOffre entite = mapper.toEntity(dto);
+                        
+                        // RG-01 : Gestion des doublons (Upsert natif via Spring Data MongoDB)
+                        if (repository.existsById(entite.getId())) {
+                            log.info("🔄 Mise à jour du marché existant : {}", entite.getId());
+                        } else {
+                            log.info("✅ Nouveau marché inséré : {}", entite.getId());
+                        }
+                        
                         repository.save(entite);
                         countSauvegardes++;
                     } catch (Exception e) {
@@ -202,7 +229,7 @@ public class ScrapingService {
                     if (!boutonsSuivant.isEmpty() && boutonsSuivant.get(0).isDisplayed()) {
                         boutonsSuivant.get(0).click();
                         page++;
-                        Thread.sleep(2000);
+                        Thread.sleep(3000);
                     } else {
                         hasNextPage = false;
                     }
