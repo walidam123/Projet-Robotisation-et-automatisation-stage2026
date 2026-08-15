@@ -11,6 +11,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Document(collection = "appels_offres") // Le nom de la collection dans Atlas
 @Data // Lombok: génère Getters, Setters, toString, etc.
@@ -45,4 +46,8 @@ public class AppelOffre {
 
     @Field("url_dce")
     private String urlDce;
+    
+    // Champs ajoutés pour le Lot 3 (Téléchargement des dossiers)
+    private boolean dceTelecharge;
+    private List<String> nomsFichiers;
 }

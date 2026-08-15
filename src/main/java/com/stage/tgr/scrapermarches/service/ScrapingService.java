@@ -35,6 +35,7 @@ public class ScrapingService {
     private final AppelOffreRepository repository;
     private final AppelOffreMapper mapper;
     private final ConfigurationRobotRepository configRepository;
+    private final TelechargementDceService telechargementDceService;
 
     /**
      * Tâche planifiée pour s'exécuter tous les jours à 1h00 du matin.
@@ -239,6 +240,17 @@ public class ScrapingService {
             }
 
             log.info("✅ Synchronisation terminée : {} marchés sauvegardés dans MongoDB.", countSauvegardes);
+            
+            // --- 5. Téléchargement des DCE pour les marchés qui n'ont pas encore leurs fichiers ---
+            log.info("Recherche de marchés sans DCE téléchargé...");
+            List<AppelOffre> tousLesMarches = repository.findAll();
+            for (AppelOffre ao : tousLesMarches) {
+                if (!ao.isDceTelecharge() && "Ouvert".equals(ao.getStatut()) && ao.getUrlDce() != null && !ao.getUrlDce().isEmpty()) {
+                    log.info("Lancement du téléchargement DCE pour le marché : {}", ao.getReference());
+                    telechargementDceService.telechargerDce(ao);
+                }
+            }
+            log.info("✅ Tous les DCE manquants ont été traités.");
 
         } catch (Exception e) {
             log.error("Erreur critique lors de l'extraction : ", e);
