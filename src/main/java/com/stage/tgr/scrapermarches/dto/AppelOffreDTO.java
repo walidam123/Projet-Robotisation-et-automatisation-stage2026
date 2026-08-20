@@ -16,4 +16,5 @@ public class AppelOffreDTO {
     
     private boolean dceTelecharge;
     private List<String> nomsFichiers;
+    private String estimationCout;
 }

@@ -10,7 +10,8 @@ export default function Config() {
     emailNotification: '',
     dateDebutRecherche: '',
     dateFinRecherche: '',
-    limiteResultats: 50
+    limiteResultats: 50,
+    motCleRecherche: ''
   });
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
@@ -34,7 +35,7 @@ export default function Config() {
     e.preventDefault();
     setSaved(false);
     try {
-      await axios.post(`${API_BASE}/config`, config);
+      await axios.put(`${API_BASE}/config`, config);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (error) {
@@ -75,6 +76,19 @@ export default function Config() {
               required
             />
             <span className="form-text">Le robot tapera exactement ce texte dans la barre de recherche du portail.</span>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Recherche par mots clés (Objet/Intitulé) :</label>
+            <input 
+              type="text" 
+              className="form-control" 
+              name="motCleRecherche"
+              value={config.motCleRecherche || ''}
+              onChange={handleChange}
+              placeholder="Ex: sécurité DNS, serveurs..."
+            />
+            <span className="form-text">Optionnel. Le robot saisira ce mot-clé dans le champ "Dans la référence, l'intitulé ou l'objet de la consultation".</span>
           </div>
 
           <div className="grid-2 form-group">

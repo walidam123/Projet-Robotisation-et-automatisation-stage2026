@@ -52,11 +52,11 @@ public class WebController {
         return "redirect:/?success=true"; // Redirige vers le dashboard avec un message de succès
     }
 
-    @GetMapping("/run-scraper")
-    public String runScraper() {
-        // Lancement dans un thread pour ne pas bloquer l'interface Web
-        new Thread(() -> scrapingService.demarrerExtraction()).start();
-        return "redirect:/?scraping=started";
+    @PostMapping("/demarrer-scraping")
+    public String demarrerScraping() {
+        // Lancement asynchrone par défaut sur ACHETEUR
+        new Thread(() -> scrapingService.demarrerExtraction("ACHETEUR")).start();
+        return "redirect:/?success=Extraction démarrée en arrière-plan";
     }
 
     @GetMapping("/run-alerts")

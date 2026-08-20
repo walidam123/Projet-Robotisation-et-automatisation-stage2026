@@ -1,17 +1,53 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { Play, Mail, FileText, CheckCircle2, AlertCircle, X, FolderOpen } from 'lucide-react';
+import { Play, Mail, CheckCircle2, AlertCircle, Loader } from 'lucide-react';
+import MarcheDetailsModal from '../components/MarcheDetailsModal';
+import { useAuth } from '../context/AuthContext';
 
 const API_BASE = 'http://localhost:8080/api';
 
 export default function Dashboard() {
+  const { isAdmin } = useAuth();
   const [marches, setMarches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [alertMessage, setAlertMessage] = useState(null);
   
-  // States pour la lecture des documents
+  // States pour la pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
   const [selectedMarche, setSelectedMarche] = useState(null);
-  const [viewDocument, setViewDocument] = useState(null);
+  
+  // Timer d'extraction
+  const [extractionTime, setExtractionTime] = useState(0);
+  const [isExtracting, setIsExtracting] = useState(false);
+  const timeRef = useRef(0);
+
+  useEffect(() => {
+    let interval;
+    if (isExtracting) {
+      timeRef.current = 0;
+      interval = setInterval(() => {
+        timeRef.current += 1;
+        setExtractionTime(timeRef.current);
+      }, 1000);
+    } else {
+      clearInterval(interval);
+    }
+    return () => clearInterval(interval);
+  }, [isExtracting]);
+
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}m ${secs < 10 ? '0' : ''}${secs}s`;
+  };
+  
+  const formatDate = (dateString) => {
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleString('fr-FR', {
+      day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+    });
+  };
 
   const fetchMarches = async () => {
     try {
@@ -28,17 +64,31 @@ export default function Dashboard() {
     fetchMarches();
   }, []);
 
-  const runScraper = async () => {
-    setAlertMessage({ type: 'info', text: 'Extraction en cours, veuillez patienter (le robot navigue sur le portail)...' });
+  const runScraper = async (type) => {
+    const isMotCle = type === 'MOT_CLE';
+    const messageConfirm = isMotCle 
+      ? "Attention : Cette extraction (Mots-clés) va vider la base de données actuelle pour chercher uniquement via votre mot-clé. Voulez-vous continuer ?"
+      : "Attention : Cette extraction (Acheteur) va vider la base de données actuelle pour chercher selon l'acheteur et les dates configurées. Voulez-vous continuer ?";
+      
+    if (!window.confirm(messageConfirm)) {
+      return;
+    }
+
+    setIsExtracting(true);
+    setExtractionTime(0);
+    setAlertMessage({ type: 'info', text: `Extraction en cours (${isMotCle ? 'Mots-Clés' : 'Acheteur & Dates'}), veuillez patienter... Temps estimé : ~2 minutes.` });
     try {
-      await axios.post(`${API_BASE}/run-scraper`);
-      setAlertMessage({ type: 'success', text: 'Extraction terminée ! Actualisation du tableau de bord dans 3 secondes...' });
+      const endpoint = isAdmin() ? '/run-scraper' : '/membre/run-scraper';
+      await axios.post(`${API_BASE}${endpoint}?type=${type}`);
+      setAlertMessage({ type: 'success', text: `Extraction terminée en ${formatTime(timeRef.current)} ! Actualisation du tableau de bord...` });
       setTimeout(() => {
         fetchMarches();
         setAlertMessage(null);
       }, 3000);
     } catch (e) {
       setAlertMessage({ type: 'error', text: 'Erreur lors du démarrage du scraper.' });
+    } finally {
+      setIsExtracting(false);
     }
   };
 
@@ -51,12 +101,12 @@ export default function Dashboard() {
     }
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleString('fr-FR', {
-      day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
-    });
-  };
+
+  // Logique de pagination
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentMarches = marches.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(marches.length / itemsPerPage);
 
   return (
     <div>
@@ -65,9 +115,12 @@ export default function Dashboard() {
           <h2>Liste des Appels d'Offres Extraits</h2>
           <p className="text-muted">Consultez et suivez les marchés publics enregistrés par le robot.</p>
         </div>
-        <div className="page-header-actions">
-          <button onClick={runScraper} className="btn btn-outline">
-            <Play size={18} /> Lancer l'Extraction
+        <div className="page-header-actions" style={{ gap: '0.5rem', display: 'flex', flexWrap: 'wrap' }}>
+          <button onClick={() => runScraper('ACHETEUR')} className="btn btn-primary" title="Extraction classique (Automatisée la nuit)">
+            <Play size={18} /> Extraction (Acheteur)
+          </button>
+          <button onClick={() => runScraper('MOT_CLE')} className="btn btn-outline" style={{ borderColor: '#8b5cf6', color: '#8b5cf6' }} title="Recherche spécifique par mots-clés">
+            <Play size={18} /> Extraction (Mots-clés)
           </button>
           <button onClick={runAlerts} className="btn btn-outline">
             <Mail size={18} /> Tester les Alertes
@@ -77,8 +130,18 @@ export default function Dashboard() {
 
       {alertMessage && (
         <div className={`alert ${alertMessage.type === 'error' ? 'alert-danger' : 'alert-info'}`}>
-          {alertMessage.type === 'info' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
-          {alertMessage.text}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              {alertMessage.type === 'info' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
+              {alertMessage.text}
+            </div>
+            {isExtracting && (
+              <div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Loader size={16} className="spin" />
+                {formatTime(extractionTime)}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -106,7 +169,7 @@ export default function Dashboard() {
                   </td>
                 </tr>
               ) : (
-                marches.map((marche) => (
+                currentMarches.map((marche) => (
                   <tr key={marche.id}>
                     <td className="text-bold">{marche.reference}</td>
                     <td>
@@ -123,15 +186,11 @@ export default function Dashboard() {
                     <td>
                       <button 
                         onClick={() => setSelectedMarche(marche)} 
-                        className="btn btn-sm btn-outline"
-                        style={{ marginRight: '0.5rem', marginBottom: '0.5rem' }}
-                        title="Consulter les documents extraits"
+                        className="btn btn-sm btn-primary"
+                        title="Voir tous les détails et documents"
                       >
-                        <FolderOpen size={16} /> Fichiers ({marche.nomsFichiers ? marche.nomsFichiers.length : 0})
+                        Afficher détails
                       </button>
-                      <a href={marche.urlDce} target="_blank" rel="noreferrer" className="btn btn-sm btn-primary">
-                        <FileText size={16} /> Portail
-                      </a>
                     </td>
                   </tr>
                 ))
@@ -139,114 +198,35 @@ export default function Dashboard() {
             </tbody>
           </table>
         )}
+
+        {!loading && totalPages > 1 && (
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: '1.5rem', marginBottom: '1rem', gap: '1rem', alignItems: 'center' }}>
+            <button 
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
+              disabled={currentPage === 1}
+              className="btn btn-outline btn-sm"
+            >
+              Précédent
+            </button>
+            <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+              Page <strong style={{color: 'var(--primary-color)'}}>{currentPage}</strong> sur {totalPages}
+            </span>
+            <button 
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} 
+              disabled={currentPage === totalPages}
+              className="btn btn-outline btn-sm"
+            >
+              Suivant
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Modale de visualisation des documents */}
-      {selectedMarche && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
-        }}>
-          <div style={{ backgroundColor: 'white', padding: '2rem', borderRadius: 'var(--radius-md)', width: '90%', maxWidth: '1000px', height: '90vh', display: 'flex', flexDirection: 'column', boxShadow: 'var(--shadow-lg)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
-              <h3>Documents du marché {selectedMarche.reference}</h3>
-              <button onClick={() => { setSelectedMarche(null); setViewDocument(null); }} className="btn btn-outline" style={{ border: 'none', background: '#f1f5f9' }}><X size={20} /></button>
-            </div>
-            
-            {!viewDocument ? (
-              <div style={{ flex: 1, overflowY: 'auto' }}>
-                {selectedMarche.nomsFichiers && selectedMarche.nomsFichiers.length > 0 ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '0.5rem' }}>
-                    {selectedMarche.nomsFichiers.map((fichier, idx) => {
-                      const lower = fichier.toLowerCase();
-                      const isPdf = lower.endsWith('.pdf');
-                      const isWord = lower.endsWith('.doc') || lower.endsWith('.docx');
-                      const isExcel = lower.endsWith('.xls') || lower.endsWith('.xlsx');
-                      
-                      let bgColor = '#f1f5f9';
-                      let iconColor = '#64748b';
-                      if (isPdf) { bgColor = '#fee2e2'; iconColor = '#ef4444'; }
-                      else if (isWord) { bgColor = '#e0f2fe'; iconColor = '#0ea5e9'; }
-                      else if (isExcel) { bgColor = '#dcfce7'; iconColor = '#22c55e'; }
-
-                      return (
-                        <div 
-                          key={idx} 
-                          style={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            justifyContent: 'space-between', 
-                            padding: '1rem', 
-                            backgroundColor: '#f8fafc', 
-                            border: '1px solid #e2e8f0', 
-                            borderRadius: '0.75rem',
-                            transition: 'all 0.2s ease',
-                            cursor: 'pointer'
-                          }}
-                          onMouseEnter={(e) => { 
-                            e.currentTarget.style.borderColor = 'var(--primary-color)'; 
-                            e.currentTarget.style.backgroundColor = '#f1f5f9'; 
-                            e.currentTarget.style.transform = 'translateY(-2px)';
-                            e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)';
-                          }}
-                          onMouseLeave={(e) => { 
-                            e.currentTarget.style.borderColor = '#e2e8f0'; 
-                            e.currentTarget.style.backgroundColor = '#f8fafc';
-                            e.currentTarget.style.transform = 'none';
-                            e.currentTarget.style.boxShadow = 'none';
-                          }}
-                          onClick={() => setViewDocument(fichier)}
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', overflow: 'hidden' }}>
-                            <div style={{ 
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              width: '44px', height: '44px', borderRadius: '10px',
-                              backgroundColor: bgColor,
-                              color: iconColor,
-                              flexShrink: 0
-                            }}>
-                              <FileText size={22} />
-                            </div>
-                            <div style={{ display: 'flex', flexDirection: 'column' }}>
-                              <span style={{ fontWeight: 600, color: '#1e293b', fontSize: '0.95rem', wordBreak: 'break-word', lineHeight: '1.4' }}>
-                                {fichier}
-                              </span>
-                              <span style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '0.2rem' }}>
-                                Document officiel du DCE
-                              </span>
-                            </div>
-                          </div>
-                          <div style={{ paddingLeft: '1rem' }}>
-                            <button className="btn btn-outline btn-sm" style={{ whiteSpace: 'nowrap', pointerEvents: 'none' }}>
-                              Ouvrir
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
-                    <FolderOpen size={48} style={{ opacity: 0.5, marginBottom: '1rem' }} />
-                    <p>Le robot n'a pas encore téléchargé les documents pour ce marché ou aucun fichier PDF/Word n'a été trouvé.</p>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <div style={{ marginBottom: '1rem' }}>
-                  <button onClick={() => setViewDocument(null)} className="btn btn-outline btn-sm">← Retour à la liste des fichiers</button>
-                </div>
-                <iframe 
-                  src={`${API_BASE}/documents/view?reference=${encodeURIComponent(selectedMarche.reference)}&nomFichier=${encodeURIComponent(viewDocument)}`} 
-                  style={{ flex: 1, width: '100%', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)' }}
-                  title="Visualiseur Document"
-                />
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      {/* Modale de visualisation des documents importée depuis le composant */}
+      <MarcheDetailsModal 
+        selectedMarche={selectedMarche} 
+        onClose={() => setSelectedMarche(null)} 
+      />
 
     </div>
   );

@@ -24,4 +24,7 @@ public interface AppelOffreRepository extends MongoRepository<AppelOffre, String
 
     // Utile pour trouver tous les marchés avec un statut spécifique
     List<AppelOffre> findByStatut(String statut);
+
+    // Ajouté pour l'authentification (Lot 6) - filtrage par config du membre
+    List<AppelOffre> findByConfigId(String configId);
 }

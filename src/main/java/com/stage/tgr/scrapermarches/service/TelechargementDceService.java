@@ -167,7 +167,9 @@ public class TelechargementDceService {
         List<String> nomsFichiers = new ArrayList<>();
         byte[] buffer = new byte[4096];
         
-        try (ZipInputStream zis = new ZipInputStream(new FileInputStream(zipFile))) {
+        // Utilisation de l'encodage windows-1252 (ou cp437) pour éviter l'erreur "malformed input" 
+        // avec les ZIP créés sous d'anciennes versions de Windows (fréquent dans les marchés publics)
+        try (ZipInputStream zis = new ZipInputStream(new FileInputStream(zipFile), java.nio.charset.Charset.forName("windows-1252"))) {
             ZipEntry zipEntry = zis.getNextEntry();
             while (zipEntry != null) {
                 if (!zipEntry.isDirectory()) {

@@ -50,4 +50,10 @@ public class AppelOffre {
     // Champs ajoutés pour le Lot 3 (Téléchargement des dossiers)
     private boolean dceTelecharge;
     private List<String> nomsFichiers;
+    
+    // Ajouté pour le Lot 4 (NLP Estimation)
+    private String estimationCout;
+
+    // Ajouté pour l'authentification (Lot 6) - rattaché à la config du membre qui a lancé l'extraction
+    private String configId;
 }

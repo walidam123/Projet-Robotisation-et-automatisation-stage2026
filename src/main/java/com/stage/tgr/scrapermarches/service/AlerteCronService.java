@@ -25,7 +25,7 @@ public class AlerteCronService {
     /**
      * S'exécute tous les jours à 10h00 du matin pour envoyer les emails d'alerte (J-7 et J-1).
      */
-    // @Scheduled(cron = "0 0 10 * * ?") // Désactivé pour la démo, on le déclenchera manuellement ou au démarrage
+    @Scheduled(cron = "0 0 10 * * ?") // Activé : s'exécute à 10h du matin
     public void verifierEtEnvoyerAlertes() {
         log.info("Démarrage de la vérification quotidienne des alertes (J-7 / J-1)...");
         

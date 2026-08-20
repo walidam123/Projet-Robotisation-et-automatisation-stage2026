@@ -24,6 +24,7 @@ import java.util.List;
 import org.openqa.selenium.JavascriptExecutor;
 import org.springframework.scheduling.annotation.Scheduled;
 
+import com.stage.tgr.scrapermarches.repository.FichierDceRepository;
 import com.stage.tgr.scrapermarches.model.ConfigurationRobot;
 import com.stage.tgr.scrapermarches.repository.ConfigurationRobotRepository;
 
@@ -34,37 +35,68 @@ public class ScrapingService {
 
     private final AppelOffreRepository repository;
     private final AppelOffreMapper mapper;
+    private final FichierDceRepository fichierDceRepository;
     private final ConfigurationRobotRepository configRepository;
     private final TelechargementDceService telechargementDceService;
+    private final EstimationExtractorService estimationExtractorService;
 
-    /**
-     * Tâche planifiée pour s'exécuter tous les jours à 1h00 du matin.
-     * Récupère les nouveaux marchés sur le portail et les met à jour en base (Upsert).
-     */
-    // @Scheduled(cron = "0 0 1 * * ?") // Désactivé pour la démo
-    public void demarrerExtraction() {
-        log.info("Démarrage du robot d'extraction des marchés publics...");
-        
-        // Chargement de la configuration depuis la base de données
-        ConfigurationRobot config = configRepository.findById("1").orElse(
+    @Scheduled(cron = "0 0 1 * * ?") // 1h du matin tous les jours
+    public void extractionAutomatiqueType1() {
+        log.info("Lancement planifié (1h00) de l'extraction TYPE 1 (Acheteur)...");
+        demarrerExtraction("ACHETEUR");
+    }
+
+    public void demarrerExtraction(String typeExtraction) {
+        // Appel générique - utilise la 1ère config trouvée (planifié ou admin)
+        ConfigurationRobot config = configRepository.findAll().stream().findFirst().orElse(
                 ConfigurationRobot.builder()
-                        .id("1")
                         .acheteurCible("POSTE MAROC")
                         .emailNotification("test@test.com")
                         .limiteResultats(50)
                         .build()
         );
+        demarrerExtractionAvecConfig(typeExtraction, config);
+    }
+
+    /**
+     * Lancement de l'extraction pour un membre spécifique avec SA propre config
+     */
+    public void demarrerExtractionPourMembre(String typeExtraction, String configId) {
+        if (configId == null) {
+            log.warn("Aucune configuration associée à ce membre, extraction annulée.");
+            return;
+        }
+        ConfigurationRobot config = configRepository.findById(configId).orElse(null);
+        if (config == null) {
+            log.warn("Configuration {} introuvable.", configId);
+            return;
+        }
+        demarrerExtractionAvecConfig(typeExtraction, config);
+    }
+
+    private void demarrerExtractionAvecConfig(String typeExtraction, ConfigurationRobot config) {
+        log.info("Démarrage du robot d'extraction des marchés publics. TYPE = {}", typeExtraction);
+
+        // Purge uniquement des données de cette configuration
+        if (config.getId() != null) {
+            List<com.stage.tgr.scrapermarches.model.AppelOffre> anciens = repository.findByConfigId(config.getId());
+            anciens.forEach(m -> {
+                fichierDceRepository.findByAppelOffreId(m.getReference()).forEach(fichierDceRepository::delete);
+                repository.delete(m);
+            });
+            log.info("Données précédentes de la configuration {} supprimées.", config.getId());
+        } else {
+            repository.deleteAll();
+            fichierDceRepository.deleteAll();
+            log.warn("Purge totale de la base de données.");
+        }
+        
         String acheteurCible = config.getAcheteurCible();
         int limiteResultats = config.getLimiteResultats();
-        
-        log.info("Configuration chargée - Acheteur cible : {}", acheteurCible);
-
-        // WebDriverManager.chromedriver().setup(); // Inutile avec Selenium 4+ et évite l'erreur de connexion à github.io
 
         ChromeOptions options = new ChromeOptions();
         options.addArguments("--remote-allow-origins=*");
         options.addArguments("--start-maximized");
-        // options.addArguments("--headless=new"); // <-- Désactivé pour la démo (le navigateur sera visible)
 
         WebDriver driver = new ChromeDriver(options);
         WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(20));
@@ -74,38 +106,64 @@ public class ScrapingService {
             driver.get("https://www.marchespublics.gov.ma/index.php?page=entreprise.EntrepriseAdvancedSearch&searchAnnCons");
             wait.until(ExpectedConditions.presenceOfElementLocated(By.tagName("form")));
 
-            // --- 1. Saisie de l'acheteur ---
-            WebElement champAcheteur = wait.until(ExpectedConditions.elementToBeClickable(By.id("ctl0_CONTENU_PAGE_AdvancedSearch_orgName")));
-            champAcheteur.clear();
-            champAcheteur.sendKeys(acheteurCible);
+            if ("ACHETEUR".equals(typeExtraction)) {
+                // --- TYPE 1 : Acheteur + Dates ---
+                log.info("Application des filtres TYPE 1...");
+                WebElement champAcheteur = wait.until(ExpectedConditions.elementToBeClickable(By.id("ctl0_CONTENU_PAGE_AdvancedSearch_orgName")));
+                champAcheteur.clear();
+                champAcheteur.sendKeys(acheteurCible);
 
-            // Attendre que la liste d'autocomplétion apparaisse et cliquer sur le premier résultat pour valider l'acheteur côté serveur
-            WebElement premierResultatAcheteur = wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//div[@id='ctl0_CONTENU_PAGE_AdvancedSearch_orgName_result']//li")));
-            premierResultatAcheteur.click();
-            Thread.sleep(1000);
+                WebElement premierResultatAcheteur = wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//div[@id='ctl0_CONTENU_PAGE_AdvancedSearch_orgName_result']//li")));
+                premierResultatAcheteur.click();
+                Thread.sleep(1000);
 
-            // --- 2. Saisie des dates : "Date limite de remise des plis" ---
-            // On utilise les dates paramétrées par l'utilisateur depuis l'interface web
-            DateTimeFormatter formatteur = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-            String dateDuJour = config.getDateDebutRecherche().format(formatteur);
-            String dateFin = config.getDateFinRecherche().format(formatteur);
+                DateTimeFormatter formatteur = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+                String dateDuJour = config.getDateDebutRecherche() != null ? config.getDateDebutRecherche().format(formatteur) : LocalDate.now().format(formatteur);
+                String dateFin = config.getDateFinRecherche() != null ? config.getDateFinRecherche().format(formatteur) : LocalDate.now().plusMonths(1).format(formatteur);
 
-            // Champ "Entre le" (date de début de la plage)
-            WebElement champDateDebut = driver.findElement(By.id("ctl0_CONTENU_PAGE_AdvancedSearch_dateMiseEnLigneStart"));
-            champDateDebut.clear();
-            champDateDebut.sendKeys(dateDuJour);
-            champDateDebut.sendKeys(Keys.TAB);
+                WebElement champDateDebut = driver.findElement(By.id("ctl0_CONTENU_PAGE_AdvancedSearch_dateMiseEnLigneStart"));
+                champDateDebut.clear();
+                champDateDebut.sendKeys(dateDuJour);
+                champDateDebut.sendKeys(Keys.TAB);
 
-            // Champ "et le" (date de fin de la plage)
-            WebElement champDateFin = driver.findElement(By.id("ctl0_CONTENU_PAGE_AdvancedSearch_dateMiseEnLigneEnd"));
-            champDateFin.clear();
-            champDateFin.sendKeys(dateFin);
-            champDateFin.sendKeys(Keys.TAB);
-            Thread.sleep(500); // Laisser le site prendre en compte les dates
+                WebElement champDateFin = driver.findElement(By.id("ctl0_CONTENU_PAGE_AdvancedSearch_dateMiseEnLigneEnd"));
+                champDateFin.clear();
+                champDateFin.sendKeys(dateFin);
+                champDateFin.sendKeys(Keys.TAB);
+                Thread.sleep(500);
+
+            } else if ("MOT_CLE".equals(typeExtraction)) {
+                // --- TYPE 2 : Uniquement le Mot Clé ---
+                log.info("Application des filtres TYPE 2...");
+                if (config.getMotCleRecherche() != null && !config.getMotCleRecherche().trim().isEmpty()) {
+                    try {
+                        String jsScript = 
+                            "var labels = document.querySelectorAll('label');" +
+                            "for (var i=0; i<labels.length; i++) {" +
+                            "  if (labels[i].innerText.toLowerCase().includes('objet de la consultation') || labels[i].innerText.toLowerCase().includes('mots clés')) {" +
+                            "    var input = labels[i].closest('div').querySelector('input[type=text]') || labels[i].parentElement.parentElement.querySelector('input[type=text]');" +
+                            "    if (input) return input;" +
+                            "  }" +
+                            "}" +
+                            "return document.getElementById('ctl0_CONTENU_PAGE_AdvancedSearch_motsCles') || document.querySelector('input[name*=\"motsCles\"]');";
+                        
+                        WebElement champMotsCles = (WebElement) js.executeScript(jsScript);
+                        if (champMotsCles != null) {
+                            champMotsCles.clear();
+                            champMotsCles.sendKeys(config.getMotCleRecherche());
+                            log.info("Champ mot-clé trouvé et rempli avec succès.");
+                        } else {
+                            log.warn("Champ mots-clés introuvable sur la page.");
+                        }
+                    } catch (Exception e) {
+                        log.warn("Erreur lors de la saisie du champ mots clés : {}", e.getMessage());
+                    }
+                } else {
+                    log.warn("L'extraction TYPE 2 a été lancée mais le mot-clé est vide dans la configuration !");
+                }
+            }
 
             log.info("Configuration des options de recherche...");
-
-            // Bouton radio "Recherche exacte"
             WebElement radioRechercheExacte = wait.until(ExpectedConditions.presenceOfElementLocated(
                     By.id("ctl0_CONTENU_PAGE_AdvancedSearch_exact")
             ));
@@ -193,7 +251,9 @@ public class ScrapingService {
                         String url = extractJsonField(objStr, "url");
 
                         if (ref.isEmpty()) continue;
-                        if (!acheteur.toLowerCase().contains(acheteurCible.toLowerCase())) continue;
+                        if ("ACHETEUR".equals(typeExtraction) && !acheteur.toLowerCase().contains(acheteurCible.toLowerCase())) {
+                            continue;
+                        }
 
                         log.info("Marché trouvé : [{}] {} - Acheteur: {}", ref, objet.substring(0, Math.min(50, objet.length())), acheteur);
 
@@ -207,14 +267,15 @@ public class ScrapingService {
                                 .build();
 
                         AppelOffre entite = mapper.toEntity(dto);
-                        
+                        entite.setConfigId(config.getId()); // lier à la config du membre
+
                         // RG-01 : Gestion des doublons (Upsert natif via Spring Data MongoDB)
                         if (repository.existsById(entite.getId())) {
                             log.info("🔄 Mise à jour du marché existant : {}", entite.getId());
                         } else {
                             log.info("✅ Nouveau marché inséré : {}", entite.getId());
                         }
-                        
+
                         repository.save(entite);
                         countSauvegardes++;
                     } catch (Exception e) {
@@ -248,6 +309,9 @@ public class ScrapingService {
                 if (!ao.isDceTelecharge() && "Ouvert".equals(ao.getStatut()) && ao.getUrlDce() != null && !ao.getUrlDce().isEmpty()) {
                     log.info("Lancement du téléchargement DCE pour le marché : {}", ao.getReference());
                     telechargementDceService.telechargerDce(ao);
+                    estimationExtractorService.extraireEstimation(ao);
+                } else if (ao.isDceTelecharge() && ao.getEstimationCout() == null) {
+                    estimationExtractorService.extraireEstimation(ao);
                 }
             }
             log.info("✅ Tous les DCE manquants ont été traités.");

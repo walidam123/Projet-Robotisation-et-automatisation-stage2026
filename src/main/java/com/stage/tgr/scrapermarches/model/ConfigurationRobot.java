@@ -25,4 +25,10 @@ public class ConfigurationRobot {
     
     // On garde aussi la limite pour la pagination
     private int limiteResultats;
+    
+    // Ajouté pour la recherche par mot-clé (Lot 5)
+    private String motCleRecherche;
+
+    // Ajouté pour l'authentification (Lot 6) - lien avec le membre propriétaire
+    private String proprietaireId;
 }
