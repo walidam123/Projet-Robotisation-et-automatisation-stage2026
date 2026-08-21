@@ -24,6 +24,8 @@ export default function Login() {
         nomUtilisateur: res.data.nomUtilisateur,
         prenom: res.data.prenom,
         nom: res.data.nom,
+        email: res.data.email,
+        poste: res.data.poste,
         roles: res.data.roles,
         configId: res.data.configId,
       });
@@ -52,9 +54,8 @@ export default function Login() {
       }}>
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>🤖</div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#1e293b', margin: 0 }}>Robot Scraper</h1>
-          <p style={{ color: '#64748b', fontSize: '0.9rem', marginTop: '0.25rem' }}>Plateforme de veille des marchés publics</p>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#1e293b', margin: 0 }}>Veille Marchés</h1>
+          <p style={{ color: '#64748b', fontSize: '0.9rem', marginTop: '0.25rem' }}>Automatisation des Appels d'Offres</p>
         </div>
 
         {/* Erreur */}

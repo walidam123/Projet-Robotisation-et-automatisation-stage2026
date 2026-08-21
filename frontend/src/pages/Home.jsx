@@ -5,6 +5,7 @@ import { format, parse, startOfWeek, getDay } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { Bell, AlertTriangle, AlertCircle, CheckCircle, X, FileText, FolderOpen, ExternalLink, Clock, Building2 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import MarcheDetailsModal from '../components/MarcheDetailsModal';
 
 const API_BASE = 'http://localhost:8080/api';
@@ -49,6 +50,7 @@ function getEventColor(marche) {
 }
 
 export default function Home() {
+  const { user } = useAuth();
   const [marches, setMarches] = useState([]);
   const [selectedMarche, setSelectedMarche] = useState(null);
   const [previewMarche, setPreviewMarche] = useState(null); // Panneau latéral rapide
@@ -211,10 +213,15 @@ export default function Home() {
         .rbc-current-time-indicator { background: #ef4444; }
       `}</style>
 
-      <div className="page-header">
+      <div className="page-header" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        {user && (
+          <h1 style={{ fontSize: '1.6rem', color: '#1e293b', margin: '0 0 0.5rem 0' }}>
+            Bonjour, {user.prenom} {user.nom}
+          </h1>
+        )}
         <div>
-          <h2>Accueil & Calendrier</h2>
-          <p className="text-muted">{marches.length} appel{marches.length > 1 ? 's' : ''} d'offres • {alertes.length} alerte{alertes.length > 1 ? 's' : ''} urgente{alertes.length > 1 ? 's' : ''}</p>
+          <h2 style={{ fontSize: '1.2rem', color: '#475569', margin: 0 }}>Calendrier des extractions</h2>
+          <p className="text-muted" style={{ margin: '0.25rem 0 0 0' }}>{marches.length} appel{marches.length > 1 ? 's' : ''} d'offres • {alertes.length} alerte{alertes.length > 1 ? 's' : ''} urgente{alertes.length > 1 ? 's' : ''}</p>
         </div>
       </div>
 

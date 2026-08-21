@@ -124,8 +124,77 @@ public class AuthController {
                 "nomUtilisateur", utilisateur.getNomUtilisateur(),
                 "prenom", utilisateur.getPrenom(),
                 "nom", utilisateur.getNom(),
+                "email", utilisateur.getEmail(),
+                "poste", utilisateur.getPoste() != null ? utilisateur.getPoste() : "",
                 "roles", utilisateur.getRoles(),
                 "configId", utilisateur.getConfigId() != null ? utilisateur.getConfigId() : ""
         ));
+    }
+
+    /**
+     * GET /api/auth/me — Obtenir le profil de l'utilisateur connecté
+     */
+    @GetMapping("/me")
+    public ResponseEntity<?> getMyProfile(org.springframework.security.core.Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        
+        String userId = (String) authentication.getPrincipal();
+        Utilisateur utilisateur = utilisateurRepository.findById(userId).orElse(null);
+        if (utilisateur == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+
+        return ResponseEntity.ok(Map.of(
+                "id", utilisateur.getId(),
+                "nomUtilisateur", utilisateur.getNomUtilisateur(),
+                "prenom", utilisateur.getPrenom(),
+                "nom", utilisateur.getNom(),
+                "email", utilisateur.getEmail(),
+                "poste", utilisateur.getPoste() != null ? utilisateur.getPoste() : "",
+                "roles", utilisateur.getRoles(),
+                "dateCreation", utilisateur.getDateCreation()
+        ));
+    }
+
+    /**
+     * PUT /api/auth/me — Mettre à jour le profil
+     */
+    @PutMapping("/me")
+    public ResponseEntity<?> updateMyProfile(@RequestBody Map<String, String> body, org.springframework.security.core.Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        String userId = (String) authentication.getPrincipal();
+        Utilisateur utilisateur = utilisateurRepository.findById(userId).orElse(null);
+        if (utilisateur == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+
+        // Vérifier si le nouvel email existe déjà chez UN AUTRE utilisateur
+        String newEmail = body.get("email");
+        if (newEmail != null && !newEmail.equals(utilisateur.getEmail())) {
+            if (utilisateurRepository.existsByEmail(newEmail)) {
+                return ResponseEntity.status(HttpStatus.CONFLICT)
+                        .body(Map.of("error", "Cette adresse email est déjà utilisée."));
+            }
+            utilisateur.setEmail(newEmail);
+        }
+
+        if (body.get("nom") != null) utilisateur.setNom(body.get("nom"));
+        if (body.get("prenom") != null) utilisateur.setPrenom(body.get("prenom"));
+        if (body.get("poste") != null) utilisateur.setPoste(body.get("poste"));
+
+        // Mise à jour du mot de passe uniquement s'il est fourni et non vide
+        String newPassword = body.get("motDePasse");
+        if (newPassword != null && !newPassword.trim().isEmpty()) {
+            utilisateur.setMotDePasse(passwordEncoder.encode(newPassword));
+        }
+
+        utilisateurRepository.save(utilisateur);
+
+        return ResponseEntity.ok(Map.of("message", "Profil mis à jour avec succès."));
     }
 }

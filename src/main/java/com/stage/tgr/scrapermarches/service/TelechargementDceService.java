@@ -54,9 +54,12 @@ public class TelechargementDceService {
 
         ChromeOptions options = new ChromeOptions();
         options.addArguments("--remote-allow-origins=*");
+        // Paramètres indispensables pour cacher le navigateur (Prod)
+        options.addArguments("--headless=new");
+        options.addArguments("--no-sandbox");
+        options.addArguments("--disable-dev-shm-usage");
         options.addArguments("--start-maximized");
-        // options.addArguments("--headless=new"); // On garde visible pour voir s'il y a un captcha ou autre blocage
-
+        options.addArguments("--window-size=1920,1080");
         Map<String, Object> prefs = new HashMap<>();
         prefs.put("download.default_directory", cheminDossierMarche);
         prefs.put("download.prompt_for_download", false);

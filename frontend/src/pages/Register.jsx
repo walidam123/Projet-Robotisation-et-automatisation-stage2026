@@ -99,9 +99,8 @@ export default function Register() {
         boxShadow: '0 20px 60px rgba(0,0,0,0.12)', width: '100%', maxWidth: '480px'
       }}>
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🤖</div>
           <h1 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#1e293b', margin: 0 }}>Créer un compte</h1>
-          <p style={{ color: '#64748b', fontSize: '0.85rem', marginTop: '0.25rem' }}>Votre compte sera activé par un administrateur</p>
+          <p style={{ color: '#64748b', fontSize: '0.85rem', marginTop: '0.25rem' }}>Veille et Automatisation des Appels d'Offres marocains</p>
         </div>
 
         {error && (

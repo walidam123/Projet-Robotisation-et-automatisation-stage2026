@@ -96,8 +96,12 @@ public class ScrapingService {
 
         ChromeOptions options = new ChromeOptions();
         options.addArguments("--remote-allow-origins=*");
+        // Paramètres indispensables pour l'exécution sur serveur (Linux/Docker) sans interface graphique
+        options.addArguments("--headless=new");
+        options.addArguments("--no-sandbox");
+        options.addArguments("--disable-dev-shm-usage");
         options.addArguments("--start-maximized");
-
+        options.addArguments("--window-size=1920,1080");
         WebDriver driver = new ChromeDriver(options);
         WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(20));
         JavascriptExecutor js = (JavascriptExecutor) driver;

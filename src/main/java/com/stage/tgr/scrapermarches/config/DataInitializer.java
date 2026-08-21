@@ -4,6 +4,7 @@ import com.stage.tgr.scrapermarches.model.Utilisateur;
 import com.stage.tgr.scrapermarches.repository.UtilisateurRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -24,6 +25,9 @@ public class DataInitializer implements CommandLineRunner {
     private final UtilisateurRepository utilisateurRepository;
     private final PasswordEncoder passwordEncoder;
 
+    @Value("${app.admin.password:admin123}")
+    private String adminPassword;
+
     @Override
     public void run(String... args) {
         boolean adminExiste = utilisateurRepository.findAll().stream()
@@ -35,7 +39,7 @@ public class DataInitializer implements CommandLineRunner {
                     .prenom("Super")
                     .email("admin@robot.ma")
                     .nomUtilisateur("admin")
-                    .motDePasse(passwordEncoder.encode("admin123"))
+                    .motDePasse(passwordEncoder.encode(adminPassword))
                     .roles(Set.of("ADMIN"))
                     .actif(true)
                     .dateCreation(LocalDateTime.now())
@@ -45,7 +49,7 @@ public class DataInitializer implements CommandLineRunner {
             log.info("========================================================");
             log.info("  Compte admin créé automatiquement");
             log.info("  Identifiant : admin");
-            log.info("  Mot de passe : admin123");
+            log.info("  Mot de passe : {}", adminPassword);
             log.info("  ⚠️  Changez ce mot de passe après le premier login !");
             log.info("========================================================");
         }

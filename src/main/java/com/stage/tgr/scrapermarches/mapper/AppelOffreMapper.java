@@ -18,6 +18,10 @@ public interface AppelOffreMapper {
     @Mapping(target = "dateLimiteRemise", expression = "java(nettoyerEtParserDate(dto.getDateLimiteBrute()))")
     @Mapping(target = "id", expression = "java(dto.getReference() + \"-\" + dto.getAcheteurPublic())")
     @Mapping(target = "statut", constant = "Ouvert")
+    @Mapping(target = "datePublication", ignore = true)
+    @Mapping(target = "configId", ignore = true)
+    @Mapping(target = "nomsFichiers", ignore = true)
+    @Mapping(target = "estimationCout", ignore = true)
     AppelOffre toEntity(AppelOffreDTO dto);
 
     default LocalDateTime nettoyerEtParserDate(String dateWeb) {

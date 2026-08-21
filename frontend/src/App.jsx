@@ -1,6 +1,6 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
-import { LayoutDashboard, Settings, CalendarDays, Users, LogOut, ChevronRight } from 'lucide-react';
+import { BrowserRouter, Routes, Route, Link, useLocation, Navigate, useNavigate } from 'react-router-dom';
+import { LayoutDashboard, Settings, CalendarDays, Users, LogOut, ChevronRight, User } from 'lucide-react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Dashboard from './pages/Dashboard';
 import Config from './pages/Config';
@@ -8,6 +8,7 @@ import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import GestionUtilisateurs from './pages/admin/GestionUtilisateurs';
+import Profile from './pages/Profile';
 
 // Route protégée - redirige vers /login si non connecté
 function ProtectedRoute({ children, requireRole }) {
@@ -20,13 +21,14 @@ function ProtectedRoute({ children, requireRole }) {
 
 const Sidebar = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { user, logout, isMembre, isAdmin } = useAuth();
   const active = (path) => location.pathname === path ? 'active' : '';
 
   return (
     <div className="sidebar">
-      <Link to={isMembre() ? '/' : '/admin/utilisateurs'} className="brand">
-        🤖 Robot Scraper
+      <Link to={isMembre() ? '/' : '/admin/utilisateurs'} className="brand" style={{ fontSize: '1.15rem' }}>
+        Veille Marchés
       </Link>
 
       <div className="nav-links">
@@ -51,24 +53,18 @@ const Sidebar = () => {
             <Users size={20} /> Gestion Utilisateurs
           </Link>
         )}
+        
+        {/* PROFIL (Pour tous) */}
+        <Link to="/profil" className={`nav-item ${active('/profil')}`}>
+          <User size={20} /> Mon Profil
+        </Link>
       </div>
 
-      {/* Profil utilisateur + déconnexion */}
+      {/* Déconnexion */}
       {user && (
-        <div style={{ marginTop: 'auto', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.5rem 0', marginBottom: '0.5rem' }}>
-            <div style={{ width: 34, height: 34, borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem', fontWeight: 700, color: 'white', flexShrink: 0 }}>
-              {user.prenom?.[0]?.toUpperCase()}{user.nom?.[0]?.toUpperCase()}
-            </div>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ color: 'white', fontSize: '0.85rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.prenom} {user.nom}</div>
-              <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.72rem' }}>
-                {(user.roles || []).map(r => r === 'ADMIN' ? 'Admin' : 'Membre').join(' & ')}
-              </div>
-            </div>
-          </div>
-          <button onClick={logout} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', borderRadius: '8px', border: 'none', backgroundColor: 'rgba(239,68,68,0.15)', color: '#fca5a5', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}>
-            <LogOut size={16} /> Déconnexion
+        <div style={{ marginTop: 'auto', paddingTop: '1rem' }}>
+          <button onClick={logout} className="btn-logout" style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem', borderRadius: '8px', border: 'none', backgroundColor: '#fee2e2', color: '#ef4444', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 600 }}>
+            <LogOut size={18} /> Déconnexion
           </button>
         </div>
       )}
@@ -104,6 +100,9 @@ function AppRoutes() {
 
       {/* Routes protégées ADMIN */}
       <Route path="/admin/utilisateurs" element={<ProtectedRoute requireRole="ADMIN"><AppLayout><GestionUtilisateurs /></AppLayout></ProtectedRoute>} />
+
+      {/* Profil - accessible à tous les connectés */}
+      <Route path="/profil" element={<ProtectedRoute><AppLayout><Profile /></AppLayout></ProtectedRoute>} />
 
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/login" replace />} />
