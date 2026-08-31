@@ -122,9 +122,11 @@ export default function Dashboard() {
           <button onClick={() => runScraper('MOT_CLE')} className="btn btn-outline" style={{ borderColor: '#8b5cf6', color: '#8b5cf6' }} title="Recherche spécifique par mots-clés">
             <Play size={18} /> Extraction (Mots-clés)
           </button>
+          {/* Bouton de test caché pour la production
           <button onClick={runAlerts} className="btn btn-outline">
             <Mail size={18} /> Tester les Alertes
           </button>
+          */}
         </div>
       </div>
 

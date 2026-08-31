@@ -130,6 +130,19 @@ export default function Config() {
             />
           </div>
 
+          <div className="form-group">
+            <label className="form-label">Votre ID Telegram (Optionnel) :</label>
+            <input 
+              type="text" 
+              className="form-control" 
+              name="telegramChatId"
+              value={config.telegramChatId || ''}
+              onChange={handleChange}
+              placeholder="Ex: 1993738003"
+            />
+            <span className="form-text">Si renseigné, vous recevrez les alertes instantanées via Telegram.</span>
+          </div>
+
           <div className="form-group mb-4">
             <label className="form-label">Limite de résultats par extraction :</label>
             <input 

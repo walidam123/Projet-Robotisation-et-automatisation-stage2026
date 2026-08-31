@@ -31,4 +31,7 @@ public class ConfigurationRobot {
 
     // Ajouté pour l'authentification (Lot 6) - lien avec le membre propriétaire
     private String proprietaireId;
+
+    // Ajouté pour les alertes Telegram dynamiques
+    private String telegramChatId;
 }
